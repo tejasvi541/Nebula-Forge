@@ -1,0 +1,588 @@
+/* ═══════════════════════════════════════════════════════════════
+   NEBULA-FORGE — Tokyo Night Theme
+   24-bit TrueColor · Unicode Glows · Agentic Orchestrator
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Palette ────────────────────────────────────────────────────
+   bg:        #1a1b2e   bg-dark:   #13141f   bg-panel:  #1f2035
+   border:    #292e42   select:    #2a2f45   hover:     #343a57
+   fg:        #c0caf5   fg-dim:    #565f89   fg-dark:   #3b4261
+   cyan:      #7dcfff   blue:      #7aa2f7   purple:    #bb9af7
+   green:     #9ece6a   yellow:    #e0af68   red:       #f7768e
+   orange:    #ff9e64   pink:      #ff007c   teal:      #1abc9c
+   ──────────────────────────────────────────────────────────── */
+
+Screen {
+    background: #1a1b2e;
+    color: #c0caf5;
+}
+
+/* ── App Shell ──────────────────────────────────────────────── */
+
+#app-grid {
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 22 1fr;
+    height: 1fr;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────── */
+
+#sidebar {
+    background: #13141f;
+    border-right: tall #292e42;
+    padding: 0;
+    width: 22;
+    height: 1fr;
+}
+
+#sidebar-logo {
+    background: #13141f;
+    color: #7aa2f7;
+    padding: 1 2;
+    text-align: center;
+    border-bottom: tall #292e42;
+}
+
+#sidebar-title {
+    color: #bb9af7;
+    text-style: bold;
+    padding: 0 2;
+}
+
+.nav-item {
+    padding: 0 2;
+    color: #565f89;
+    height: 3;
+    width: 1fr;
+    background: transparent;
+    border: none;
+    text-align: left;
+    content-align: left middle;
+}
+
+.nav-item:hover {
+    background: #2a2f45;
+    color: #c0caf5;
+}
+
+.nav-item.active {
+    background: #1f2035;
+    color: #7dcfff;
+    border-left: thick #7aa2f7;
+}
+
+.nav-section-label {
+    color: #3b4261;
+    padding: 1 2 0 2;
+    text-style: bold;
+}
+
+#sidebar-status {
+    dock: bottom;
+    background: #13141f;
+    border-top: tall #292e42;
+    padding: 0 1;
+    height: 3;
+    color: #565f89;
+}
+
+/* ── Main Content ────────────────────────────────────────────── */
+
+#main-content {
+    background: #1a1b2e;
+    height: 1fr;
+    padding: 0;
+}
+
+#top-bar {
+    background: #13141f;
+    border-bottom: tall #292e42;
+    height: 3;
+    padding: 0 2;
+    color: #c0caf5;
+    content-align: left middle;
+}
+
+#top-bar-title {
+    color: #7dcfff;
+    text-style: bold;
+}
+
+#breadcrumb {
+    color: #565f89;
+}
+
+/* ── Panel / Card ────────────────────────────────────────────── */
+
+.panel {
+    background: #1f2035;
+    border: round #292e42;
+    margin: 1;
+    padding: 1 2;
+}
+
+.panel--glow {
+    background: #1f2035;
+    border: round #7aa2f7;
+    margin: 1;
+    padding: 1 2;
+}
+
+.panel--danger {
+    border: round #f7768e;
+}
+
+.panel--success {
+    border: round #9ece6a;
+}
+
+.panel--warning {
+    border: round #e0af68;
+}
+
+/* ── Section Titles ──────────────────────────────────────────── */
+
+.section-title {
+    color: #7dcfff;
+    text-style: bold;
+    padding: 0 0 1 0;
+}
+
+.section-subtitle {
+    color: #565f89;
+    padding: 0 0 1 0;
+}
+
+.label-dim {
+    color: #565f89;
+}
+
+.label-accent {
+    color: #bb9af7;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+
+Button {
+    background: #292e42;
+    color: #c0caf5;
+    border: none;
+    padding: 0 2;
+    min-width: 12;
+    height: 3;
+}
+
+Button:hover {
+    background: #343a57;
+    color: #ffffff;
+}
+
+Button:focus {
+    border: tall #7aa2f7;
+}
+
+.btn-primary {
+    background: #3d59a1;
+    color: #c0caf5;
+    text-style: bold;
+}
+
+.btn-primary:hover {
+    background: #4e6fb5;
+}
+
+.btn-success {
+    background: #2d5a2d;
+    color: #9ece6a;
+    text-style: bold;
+}
+
+.btn-success:hover {
+    background: #3a7a3a;
+}
+
+.btn-danger {
+    background: #5a2d3a;
+    color: #f7768e;
+}
+
+.btn-danger:hover {
+    background: #7a3a4a;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: #565f89;
+    border: tall #292e42;
+}
+
+.btn-ghost:hover {
+    color: #c0caf5;
+    border: tall #7aa2f7;
+}
+
+/* ── Inputs ──────────────────────────────────────────────────── */
+
+Input {
+    background: #13141f;
+    border: tall #292e42;
+    color: #c0caf5;
+    padding: 0 1;
+    height: 3;
+}
+
+Input:focus {
+    border: tall #7aa2f7;
+}
+
+Input.-invalid {
+    border: tall #f7768e;
+}
+
+Input:hover {
+    border: tall #343a57;
+}
+
+TextArea {
+    background: #13141f;
+    border: tall #292e42;
+    color: #c0caf5;
+}
+
+TextArea:focus {
+    border: tall #7aa2f7;
+}
+
+Select {
+    background: #13141f;
+    border: tall #292e42;
+    color: #c0caf5;
+    height: 3;
+}
+
+Select:focus {
+    border: tall #7aa2f7;
+}
+
+/* ── DataTable ───────────────────────────────────────────────── */
+
+DataTable {
+    background: #1f2035;
+    border: round #292e42;
+    color: #c0caf5;
+}
+
+DataTable > .datatable--header {
+    background: #13141f;
+    color: #7dcfff;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor {
+    background: #2a2f45;
+    color: #ffffff;
+}
+
+DataTable > .datatable--hover {
+    background: #292e42;
+}
+
+/* ── ListView ────────────────────────────────────────────────── */
+
+ListView {
+    background: #1f2035;
+    border: round #292e42;
+    padding: 0;
+}
+
+ListItem {
+    padding: 0 1;
+    color: #c0caf5;
+    height: 3;
+}
+
+ListItem:hover {
+    background: #292e42;
+}
+
+ListItem.-selected {
+    background: #2a2f45;
+    color: #7dcfff;
+}
+
+ListItem.-highlighted {
+    background: #343a57;
+}
+
+/* ── Progress Bar ────────────────────────────────────────────── */
+
+ProgressBar {
+    width: 1fr;
+}
+
+ProgressBar > .bar--bar {
+    color: #7aa2f7;
+    background: #292e42;
+}
+
+ProgressBar > .bar--complete {
+    color: #9ece6a;
+}
+
+ProgressBar > .bar--indeterminate {
+    color: #bb9af7;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────── */
+
+TabbedContent {
+    background: #1a1b2e;
+    height: 1fr;
+}
+
+Tabs {
+    background: #13141f;
+    border-bottom: tall #292e42;
+}
+
+Tab {
+    color: #565f89;
+    padding: 0 2;
+}
+
+Tab.-active {
+    color: #7dcfff;
+    background: #1a1b2e;
+    border-bottom: tall #7aa2f7;
+}
+
+Tab:hover {
+    color: #c0caf5;
+}
+
+/* ── Log / Output ────────────────────────────────────────────── */
+
+Log {
+    background: #13141f;
+    border: round #292e42;
+    color: #c0caf5;
+    scrollbar-color: #292e42;
+}
+
+/* ── Markdown ────────────────────────────────────────────────── */
+
+Markdown {
+    background: #1f2035;
+    border: round #292e42;
+    padding: 1 2;
+    color: #c0caf5;
+}
+
+/* ── Switch ──────────────────────────────────────────────────── */
+
+Switch {
+    background: #292e42;
+}
+
+Switch.-on {
+    background: #3d59a1;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+
+Screen {
+    scrollbar-background: #13141f;
+    scrollbar-size-vertical: 1;
+    scrollbar-color: #292e42;
+    scrollbar-background-hover: #13141f;
+    scrollbar-color-hover: #3d59a1;
+}
+
+/* ── Footer / Header ─────────────────────────────────────────── */
+
+Footer {
+    background: #13141f;
+    color: #565f89;
+    border-top: tall #292e42;
+}
+
+Footer > .footer--highlight {
+    background: #292e42;
+    color: #7aa2f7;
+}
+
+Footer > .footer--highlight-key {
+    background: #3d59a1;
+    color: #c0caf5;
+}
+
+/* ── Wizard / Modal ──────────────────────────────────────────── */
+
+.wizard-screen {
+    background: #1a1b2e;
+    align: center middle;
+}
+
+.wizard-panel {
+    background: #1f2035;
+    border: round #7aa2f7;
+    width: 80;
+    height: auto;
+    padding: 2 3;
+    margin: 2;
+}
+
+.wizard-title {
+    color: #7dcfff;
+    text-style: bold;
+    text-align: center;
+    padding: 0 0 1 0;
+}
+
+.wizard-subtitle {
+    color: #565f89;
+    text-align: center;
+    padding: 0 0 2 0;
+}
+
+.form-row {
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+.form-label {
+    color: #bb9af7;
+    padding: 0 0 0 0;
+    height: 1;
+}
+
+/* ── Skill Cards ─────────────────────────────────────────────── */
+
+.skill-card {
+    background: #1f2035;
+    border: round #292e42;
+    padding: 1 2;
+    margin: 0 0 1 0;
+    height: 7;
+}
+
+.skill-card:hover {
+    border: round #7aa2f7;
+    background: #252840;
+}
+
+.skill-name {
+    color: #7dcfff;
+    text-style: bold;
+}
+
+.skill-category {
+    color: #bb9af7;
+}
+
+.skill-model {
+    color: #9ece6a;
+}
+
+.skill-desc {
+    color: #565f89;
+}
+
+/* ── Status Indicators ───────────────────────────────────────── */
+
+.status-ok {
+    color: #9ece6a;
+}
+
+.status-warn {
+    color: #e0af68;
+}
+
+.status-error {
+    color: #f7768e;
+}
+
+.status-info {
+    color: #7dcfff;
+}
+
+/* ── Ghost Diff ──────────────────────────────────────────────── */
+
+.diff-create {
+    color: #9ece6a;
+}
+
+.diff-modify {
+    color: #e0af68;
+}
+
+.diff-symlink {
+    color: #bb9af7;
+}
+
+.diff-panel {
+    background: #13141f;
+    border: round #9ece6a;
+    padding: 1 2;
+    margin: 1;
+}
+
+/* ── Blueprint ───────────────────────────────────────────────── */
+
+.blueprint-card {
+    background: #1f2035;
+    border: round #292e42;
+    padding: 1 2;
+    margin: 0 0 1 0;
+    height: 9;
+    width: 1fr;
+}
+
+.blueprint-card:hover {
+    border: round #bb9af7;
+}
+
+.blueprint-icon {
+    color: #bb9af7;
+    text-style: bold;
+}
+
+.blueprint-name {
+    color: #7dcfff;
+    text-style: bold;
+}
+
+.blueprint-desc {
+    color: #565f89;
+}
+
+/* ── Splash ──────────────────────────────────────────────────── */
+
+#splash-screen {
+    background: #13141f;
+    align: center middle;
+}
+
+#splash-ascii {
+    color: #7aa2f7;
+    text-align: center;
+    padding: 2;
+}
+
+#splash-tagline {
+    color: #bb9af7;
+    text-align: center;
+    padding: 1;
+}
+
+#splash-loading {
+    width: 60;
+    align: center middle;
+}
+
+#splash-status {
+    color: #565f89;
+    text-align: center;
+    padding: 1;
+}

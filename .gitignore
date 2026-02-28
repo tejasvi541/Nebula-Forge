@@ -1,0 +1,55 @@
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+*.dylib
+pip-wheel-metadata/
+.Python
+
+# uv / pip
+.uv/
+uv.lock
+pip-log.txt
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Type checkers
+.mypy_cache/
+.dmypy.json
+.pyright/
+.ruff_cache/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Nebula Forge runtime
+~/.nebula-forge/
+vault.json
+
+# Logs
+*.log
+logs/
+
+# Env files
+.env
+.env.*
+!.env.example
