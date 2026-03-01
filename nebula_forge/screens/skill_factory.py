@@ -4,6 +4,7 @@ Browse, create, and manage global skills.
 """
 
 from __future__ import annotations
+import os
 from pathlib import Path
 from datetime import datetime
 
@@ -56,6 +57,7 @@ class SkillFactoryScreen(Container):
         self.vault = vault
         self.provisioner = provisioner
         self._selected_skill: str | None = None
+        self._skill_scope: str = "global"  # "global" | "local"
 
     def compose(self) -> ComposeResult:
         yield Static("  ◈  GLOBAL SKILL FACTORY", classes="section-title")
@@ -74,7 +76,7 @@ class SkillFactoryScreen(Container):
 
         header = Horizontal(
             Static(f"[bold #7dcfff]{len(skills)} skills registered[/]  "
-                   "[#565f89]in ~/.claude/skills/[/]"),
+                   f"[#565f89]in {self.vault.skills_dir}[/]"),
             Button("＋ Create New Skill", id="btn-goto-create", classes="btn-primary"),
             id="registry-header",
         )
@@ -83,8 +85,8 @@ class SkillFactoryScreen(Container):
             return ScrollableContainer(
                 header,
                 Static(
-                    "\n[#565f89]No skills yet. Click '＋ Create New Skill' to add your first skill.[/]\n\n"
-                    "[#3b4261]Skills are stored in ~/.claude/skills/[skill-name]/SKILL.md\n"
+                    f"\n[#565f89]No skills yet. Click '＋ Create New Skill' to add your first skill.[/]\n\n"
+                    f"[#3b4261]Skills are stored in {self.vault.skills_dir}/[skill-name]/SKILL.md\n"
                     "They can be injected into any project context.[/]"
                 ),
                 classes="panel",
@@ -155,6 +157,17 @@ class SkillFactoryScreen(Container):
             Input(placeholder="code, review, typescript", id="skill-tags"),
             Static("[#bb9af7]Author[/]"),
             Input(placeholder="your-name", id="skill-author", value="nebula-forge"),
+            Static("\n[bold #7dcfff]Skill Scope[/]"),
+            Static(
+                "[#565f89]Global → ~/.config/opencode/skills/  (shared across all projects)\n"
+                "Local  → <cwd>/.opencode/skills/  (only for the project where you launched nf)[/]"
+            ),
+            Horizontal(
+                Button("🌐  Global", id="btn-scope-global-skill", classes="btn-primary"),
+                Button("📁  Local (CWD)", id="btn-scope-local-skill", classes="btn-ghost"),
+                id="skill-scope-bar",
+            ),
+            Static("", id="skill-scope-label"),
             Static(""),
             Horizontal(
                 Button("⚡ Create Skill", id="btn-create-skill", classes="btn-primary"),
@@ -207,6 +220,34 @@ class SkillFactoryScreen(Container):
                 except Exception:
                     pass
 
+        elif bid == "btn-scope-global-skill":
+            self._skill_scope = "global"
+            try:
+                self.query_one("#btn-scope-global-skill", Button).add_class("btn-primary")
+                self.query_one("#btn-scope-global-skill", Button).remove_class("btn-ghost")
+                self.query_one("#btn-scope-local-skill", Button).remove_class("btn-primary")
+                self.query_one("#btn-scope-local-skill", Button).add_class("btn-ghost")
+                self.query_one("#skill-scope-label", Static).update(
+                    f"[#565f89]→ {self.vault.skills_dir}[/]"
+                )
+            except Exception:
+                pass
+
+        elif bid == "btn-scope-local-skill":
+            self._skill_scope = "local"
+            try:
+                self.query_one("#btn-scope-local-skill", Button).add_class("btn-primary")
+                self.query_one("#btn-scope-local-skill", Button).remove_class("btn-ghost")
+                self.query_one("#btn-scope-global-skill", Button).remove_class("btn-primary")
+                self.query_one("#btn-scope-global-skill", Button).add_class("btn-ghost")
+                cwd = Path(os.getcwd())
+                subdir = self.vault.load().project_skills_subdir
+                self.query_one("#skill-scope-label", Static).update(
+                    f"[#565f89]→ {cwd / subdir}[/]"
+                )
+            except Exception:
+                pass
+
         elif bid.startswith("preview-"):
             self._selected_skill = bid[8:]
             self._refresh_preview()
@@ -256,10 +297,16 @@ class SkillFactoryScreen(Container):
             author=author or "nebula-forge",
         )
 
-        self.run_provision_skill(meta)
+        if self._skill_scope == "local":
+            cwd = Path(os.getcwd())
+            subdir = self.vault.load().project_skills_subdir
+            target_dir: Path | None = cwd / subdir
+        else:
+            target_dir = None  # uses vault.skills_dir (global)
+        self.run_provision_skill(meta, target_dir)
 
     @work(exclusive=True)
-    async def run_provision_skill(self, meta: SkillMetadata) -> None:
+    async def run_provision_skill(self, meta: SkillMetadata, target_dir: Path | None = None) -> None:
         area = self.query_one("#create-progress-area")
         area.remove_children()
         area.mount(Static(f"\n[#7dcfff]Provisioning skill: {meta.name}[/]"))
@@ -268,7 +315,7 @@ class SkillFactoryScreen(Container):
         status = Static("[#565f89]Starting...[/]")
         area.mount(status)
 
-        plan = self.provisioner.plan_skill_creation(meta)
+        plan = self.provisioner.plan_skill_creation(meta, target_dir=target_dir)
 
         # Show ghost diff
         area.mount(Static("\n[bold #7dcfff]Ghost Preview — Files to Create:[/]"))
@@ -288,7 +335,8 @@ class SkillFactoryScreen(Container):
 
         if success:
             pb.progress = 100
-            status.update(f"[#9ece6a]✓ Skill '{meta.name}' created at {self.vault.skills_dir / meta.name}[/]")
+            dest = str(target_dir) if target_dir else str(self.vault.skills_dir)
+            status.update(f"[#9ece6a]✓ Skill '{meta.name}' created at {dest}/{meta.name}[/]")
             self.app.notify(f"✓ Skill '{meta.name}' provisioned!", severity="information")
         else:
             status.update("[#f7768e]✗ Provisioning failed.[/]")
@@ -305,12 +353,12 @@ class SkillFactoryScreen(Container):
             pass
 
     def _copy_to_project(self, skill_name: str) -> None:
-        import os
         cwd = Path(os.getcwd())
         plan = self.provisioner.copy_skill_to_project(skill_name, cwd)
         ok, msg = self.provisioner.execute_plan(plan)
         if ok:
-            self.app.notify(f"✓ '{skill_name}' copied to {cwd.name}/.claude/skills/", severity="information")
+            subdir = self.vault.load().project_skills_subdir
+            self.app.notify(f"✓ '{skill_name}' → {cwd.name}/{subdir}/", severity="information")
         else:
             self.app.notify(f"Copy failed: {msg}", severity="error")
 

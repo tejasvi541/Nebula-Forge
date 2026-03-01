@@ -141,6 +141,93 @@ Screen {
     border: round #e0af68;
 }
 
+/* ── App Layout ─────────────────────────────────────────────── */
+
+#content-area {
+    height: 1fr;
+    overflow: hidden auto;
+}
+
+ScrollableContainer {
+    height: 1fr;
+    overflow-y: auto;
+}
+
+/* ── Checkbox ────────────────────────────────────────────────── */
+
+Checkbox {
+    background: transparent;
+    color: #c0caf5;
+    height: 3;
+    border: none;
+    padding: 0 1;
+}
+
+Checkbox:hover {
+    background: #2a2f45;
+}
+
+Checkbox:focus {
+    border: tall #7aa2f7;
+}
+
+Checkbox > .toggle--label {
+    color: #c0caf5;
+}
+
+Checkbox.-on > .toggle--label {
+    color: #9ece6a;
+}
+
+Checkbox > .toggle--button {
+    background: #292e42;
+    color: #565f89;
+    border: tall #3b4261;
+}
+
+Checkbox.-on > .toggle--button {
+    background: #3d59a1;
+    color: #7dcfff;
+}
+
+/* ── Plugin Cards ────────────────────────────────────────────── */
+
+.plugin-card {
+    background: #1f2035;
+    border: round #292e42;
+    padding: 1 2;
+    margin: 0 0 1 0;
+    height: auto;
+    min-height: 6;
+}
+
+.plugin-card:hover {
+    border: round #bb9af7;
+    background: #252840;
+}
+
+.plugin-name {
+    color: #c0caf5;
+    text-style: bold;
+}
+
+#plugin-scope-bar {
+    height: 3;
+    margin: 0 0 1 0;
+}
+
+#skill-scope-bar {
+    height: 3;
+    margin: 0 0 1 0;
+}
+
+/* ── Registry Header ─────────────────────────────────────────── */
+
+#registry-header {
+    height: 3;
+    margin: 0 0 1 0;
+}
+
 /* ── Section Titles ──────────────────────────────────────────── */
 
 .section-title {
@@ -255,14 +342,63 @@ TextArea:focus {
 }
 
 Select {
-    background: #13141f;
-    border: tall #292e42;
-    color: #c0caf5;
     height: 3;
 }
 
-Select:focus {
+Select > SelectCurrent {
+    background: #13141f;
+    border: tall #292e42;
+    color: #c0caf5;
+    padding: 0 1;
+}
+
+Select > SelectCurrent:focus {
     border: tall #7aa2f7;
+}
+
+Select > SelectCurrent > Static {
+    background: #13141f;
+    color: #c0caf5;
+}
+
+SelectOverlay {
+    background: #1f2035;
+    border: round #7aa2f7;
+    max-height: 14;
+    layer: overlay;
+}
+
+SelectOverlay > OptionList {
+    background: #1f2035;
+    color: #c0caf5;
+    border: none;
+    padding: 0;
+}
+
+SelectOverlay > OptionList > .option-list--option {
+    color: #c0caf5;
+    padding: 0 1;
+    background: #1f2035;
+}
+
+SelectOverlay > OptionList > .option-list--option-hover {
+    background: #2a2f45;
+    color: #c0caf5;
+}
+
+SelectOverlay > OptionList > .option-list--option-highlighted {
+    background: #3d59a1;
+    color: #ffffff;
+    text-style: bold;
+}
+
+SelectOverlay > OptionList > .option-list--option-hover-highlighted {
+    background: #4e6fb5;
+    color: #ffffff;
+}
+
+SelectOverlay > OptionList > .option-list--separator {
+    color: #292e42;
 }
 
 /* ── DataTable ───────────────────────────────────────────────── */
@@ -464,7 +600,8 @@ Footer > .footer--highlight-key {
     border: round #292e42;
     padding: 1 2;
     margin: 0 0 1 0;
-    height: 7;
+    height: auto;
+    min-height: 8;
 }
 
 .skill-card:hover {

@@ -147,7 +147,6 @@ class Vault:
     def project_agents_dir(self, project_path: Path) -> Path:
         """Return the agents dir for a specific project."""
         return project_path / self.load().project_agents_subdir
-        self.save(cfg)
 
     # ── Key Access ───────────────────────────────────────────
 

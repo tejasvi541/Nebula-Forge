@@ -297,6 +297,9 @@ OPENCODE_PLUGINS: List[OpenCodePlugin] = [
         config_snippet={"type": "local", "command": ["npx", "-y", "opencode-md-table-formatter"], "enabled": True},
     ),
 ]
+
+
+class ProvisionEntry(BaseModel):
     path: str
     content: str
     action: str = "create"  # create | modify | symlink

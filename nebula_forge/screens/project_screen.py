@@ -75,10 +75,11 @@ class ProjectScreen(Container):
         stack_str = ", ".join(ctx.detected_stack) if ctx.detected_stack else "Unknown"
 
         status_items = [
-            ("Git Repository",   ctx.has_git),
-            ("CLAUDE.md",        ctx.has_claude_md),
-            ("gemini.json",      ctx.has_gemini_json),
-            ("Nebula Agents",    ctx.has_nebula_agents),
+            ("Git Repository",      ctx.has_git),
+            ("AGENTS.md",           ctx.has_agents_md),
+            ("opencode.json",       ctx.has_opencode_json),
+            (".opencode/ dir",      ctx.has_opencode_dir),
+            ("CLAUDE.md (legacy)",  ctx.has_claude_md),
         ]
         lines = "\n[bold #7dcfff]Status Checklist[/]\n"
         for label, present in status_items:
@@ -117,7 +118,11 @@ class ProjectScreen(Container):
     # ── Plugins Tab ────────────────────────────────────────────────
 
     def _build_plugins_tab(self) -> ScrollableContainer:
-        cwd = Path(os.getcwd())
+        try:
+            path_str = self.query_one("#project-path", Input).value.strip()
+            cwd = Path(path_str).expanduser() if path_str else Path(os.getcwd())
+        except Exception:
+            cwd = Path(os.getcwd())
         installed = self.provisioner.get_installed_plugins(cwd, scope="project")
         installed_global = self.provisioner.get_installed_plugins(cwd, scope="global")
 
@@ -131,19 +136,19 @@ class ProjectScreen(Container):
             "general":  "◈ General",
         }
 
+        proj_installed = len(installed)
+        glob_installed = len(installed_global)
+
         widgets: list = [
             Static("[bold #7dcfff]OpenCode Plugin Catalogue[/]"),
             Static(
-                "[#565f89]Install plugins into your project's [#9ece6a]opencode.json[/][#565f89] "
-                "or the [#9ece6a]global[/][#565f89] ~/.config/opencode/opencode.json."
-                " Plugins are added as MCP entries — no code required.[/]\n"
+                "[#565f89]Plugins are added as MCP entries into [#9ece6a]opencode.json[/] — no code required.\n"
+                f"[#bb9af7]+P[/] [#565f89]= install into project  [/][#7aa2f7]+G[/] [#565f89]= install globally[/]\n"
             ),
-            Horizontal(
-                Button("📁  Project: " + (cwd.name or "?"), id="btn-scope-project", classes="btn-primary"),
-                Button("🌐  Global Config", id="btn-scope-global", classes="btn-ghost"),
-                id="plugin-scope-bar",
+            Static(
+                f"[#565f89]Project:[/]  [#c0caf5]{cwd}[/]  "
+                f"[#9ece6a]{proj_installed} proj[/]  [#7aa2f7]{glob_installed} global[/]"
             ),
-            Static("", id="plugin-scope-label"),
             Static(""),
         ]
 
@@ -169,9 +174,8 @@ class ProjectScreen(Container):
                         Button("✕G", id=f"plug-rm-glob-{plugin.name}", classes="btn-danger") if in_global else Static(""),
                     ),
                     Static(f"[#565f89]{plugin.description}[/]"),
-                    Static(f"[#3b4261]cmd: {plugin.npm_install}[/]"),
-                    Static(""),
-                    classes="skill-card",
+                    Static(f"[#3b4261]{plugin.npm_install}[/]"),
+                    classes="plugin-card",
                     id=f"plugin-card-{plugin.name.replace('@','').replace('/','_')}",
                 ))
 
@@ -363,7 +367,7 @@ class ProjectScreen(Container):
             status.update("[#9ece6a]✓ Bootstrap complete![/]")
             exec_view.mount(Static(
                 f"\n[bold #9ece6a]Project {self._ctx.name} is ready![/]\n"
-                f"[#565f89]CLAUDE.md, gemini.json, and .nebula/ have been created.[/]"
+                f"[#565f89]AGENTS.md, opencode.json, and .opencode/ have been created.[/]"
             ))
             self.app.notify(f"✓ {self._ctx.name} bootstrapped!", severity="information")
         else:
