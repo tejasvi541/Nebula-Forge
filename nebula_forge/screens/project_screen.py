@@ -5,12 +5,14 @@ Detect project, inject skills, bootstrap agent config.
 
 from __future__ import annotations
 import os
+import difflib
 from pathlib import Path
+from datetime import datetime
 
 from textual.app import ComposeResult
 from textual.widgets import (
     Button, Input, Label, Static, TabbedContent, TabPane,
-    Checkbox, ProgressBar, Switch
+    Checkbox, ProgressBar, Switch, TextArea
 )
 from textual.containers import (
     Vertical, Horizontal, Container, ScrollableContainer
@@ -33,6 +35,8 @@ class ProjectScreen(Container):
         self.provisioner = provisioner
         self._ctx: ProjectContext | None = None
         self._selected_skills: list[str] = []
+        self._pending_agents_write_path: Path | None = None
+        self._pending_agents_write_content: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Static("  ◈  PROJECT PROVISIONER", classes="section-title")
@@ -43,6 +47,8 @@ class ProjectScreen(Container):
                 yield self._build_inject()
             with TabPane("  Plugins  ", id="tab-plugins"):
                 yield self._build_plugins_tab()
+            with TabPane("  Context Architect  ", id="tab-architect"):
+                yield self._build_architect_tab()
             with TabPane("  Ghost Diff  ", id="tab-diff"):
                 yield Container(
                     Static("[#565f89]Run detection first, then click 'Preview Plan'[/]"),
@@ -181,6 +187,231 @@ class ProjectScreen(Container):
 
         return ScrollableContainer(*widgets, id="plugins-panel", classes="panel")
 
+    # ── Context Architect ─────────────────────────────────────────
+
+    def _build_architect_tab(self) -> ScrollableContainer:
+        cwd = Path(os.getcwd())
+        project_name = cwd.name or "my-project"
+        stack_hint = "Unknown"
+        if self._ctx and self._ctx.detected_stack:
+            stack_hint = ", ".join(self._ctx.detected_stack)
+
+        return ScrollableContainer(
+            Static("[bold #7dcfff]AGENTS.md Context Architect[/]"),
+            Static("[#565f89]Structured editor for AGENTS.md with preview before write.[/]\n"),
+            Static("[#bb9af7]Project Name[/]"),
+            Input(value=project_name, id="arch-project-name"),
+            Static("[#bb9af7]Project Description[/]"),
+            Input(placeholder="What does this project do?", id="arch-project-desc"),
+            Horizontal(
+                Container(
+                    Static("[#bb9af7]Primary Language[/]"),
+                    Input(value="Python", id="arch-language"),
+                ),
+                Container(
+                    Static("[#bb9af7]Framework[/]"),
+                    Input(value=stack_hint, id="arch-framework"),
+                ),
+            ),
+            Horizontal(
+                Container(
+                    Static("[#bb9af7]Backend[/]"),
+                    Input(placeholder="FastAPI / Node / Django", id="arch-backend"),
+                ),
+                Container(
+                    Static("[#bb9af7]Database[/]"),
+                    Input(placeholder="PostgreSQL / MongoDB", id="arch-database"),
+                ),
+            ),
+            Static("[#bb9af7]Conventions (one per line)[/]"),
+            TextArea(id="arch-conventions", text="Use type hints\nWrite tests for new behavior"),
+            Static("[#bb9af7]Rules (one per line)[/]"),
+            TextArea(id="arch-rules", text="Never commit secrets\nKeep changes focused and reviewable"),
+            Static("[#bb9af7]Memory Bank Facts (one per line)[/]"),
+            TextArea(id="arch-memory", text="Project uses .opencode/skills for local skills"),
+            Static("[#bb9af7]Danger Zones (paths, one per line)[/]"),
+            TextArea(id="arch-danger", text="migrations/\ninfra/production"),
+            Horizontal(
+                Button("Preview AGENTS.md", id="btn-arch-preview", classes="btn-primary"),
+                Button("View Diff", id="btn-arch-diff", classes="btn-ghost"),
+                Button("Write AGENTS.md", id="btn-arch-write", classes="btn-success"),
+            ),
+            Container(id="arch-preview-view"),
+            classes="panel",
+        )
+
+    def _build_agents_from_architect(self, project_path: Path) -> str:
+        def _value(input_id: str, default: str = "") -> str:
+            try:
+                return self.query_one(f"#{input_id}", Input).value.strip() or default
+            except Exception:
+                return default
+
+        def _lines(area_id: str) -> list[str]:
+            try:
+                raw = self.query_one(f"#{area_id}", TextArea).text
+            except Exception:
+                raw = ""
+            return [line.strip() for line in raw.splitlines() if line.strip()]
+
+        name = _value("arch-project-name", project_path.name)
+        desc = _value("arch-project-desc", "Project overview pending")
+        language = _value("arch-language", "Unknown")
+        framework = _value("arch-framework", "Unknown")
+        backend = _value("arch-backend", "Unknown")
+        database = _value("arch-database", "Unknown")
+
+        conventions = _lines("arch-conventions")
+        rules = _lines("arch-rules")
+        memory = _lines("arch-memory")
+        danger = _lines("arch-danger")
+        conventions_md = "\n".join(f"- {x}" for x in conventions) or "- (none defined)"
+        rules_md = "\n".join(f"- {x}" for x in rules) or "- (none defined)"
+        memory_md = "\n".join(f"- {x}" for x in memory) or "- (none defined)"
+        danger_md = "\n".join(f"- `{x}`" for x in danger) or "- (none defined)"
+
+        stack = ", ".join(x for x in [language, framework, backend, database] if x and x != "Unknown") or "Unknown"
+
+        return (
+            "# AGENTS.md — Project Rules & Memory Bank\n"
+            "# Generated by NEBULA-FORGE Context Architect\n\n"
+            "## Project Identity\n\n"
+            f"**Name:** {name}\n"
+            f"**Path:** {project_path}\n"
+            f"**Stack:** {stack}\n\n"
+            "### Description\n"
+            f"{desc}\n\n"
+            "## Conventions\n"
+            f"{conventions_md}\n\n"
+            "## Rules\n"
+            f"{rules_md}\n\n"
+            "## Memory Bank\n"
+            f"{memory_md}\n\n"
+            "## Danger Zones\n"
+            f"{danger_md}\n\n"
+            "## Agent Instructions\n"
+            "1. Read this file before planning edits\n"
+            "2. Prefer project-local skills in `.opencode/skills/`\n"
+            "3. Keep plans explicit and test-driven\n\n"
+            "## Changelog\n"
+            "| Date | Change | Author |\n"
+            "|------|--------|--------|\n"
+            f"| {datetime.now().strftime('%Y-%m-%d')} | Context Architect update | nebula-forge |\n"
+        )
+
+    def _preview_architect_agents(self) -> None:
+        try:
+            path_str = self.query_one("#project-path", Input).value.strip()
+        except Exception:
+            path_str = str(Path(os.getcwd()))
+        project_path = Path(path_str).expanduser()
+        content = self._build_agents_from_architect(project_path)
+
+        host = self.query_one("#arch-preview-view", Container)
+        host.remove_children()
+        host.mount(Static("\n[bold #7dcfff]AGENTS.md Preview[/]"))
+        host.mount(Static(f"[#565f89]{(project_path / 'AGENTS.md')}[/]"))
+        host.mount(Static(f"[#c0caf5]{content[:5000]}[/]"))
+
+    def _diff_stats(self, before: str, after: str) -> tuple[int, int, int]:
+        adds = dels = mods = 0
+        for line in difflib.ndiff(before.splitlines(), after.splitlines()):
+            if line.startswith("+ "):
+                adds += 1
+            elif line.startswith("- "):
+                dels += 1
+            elif line.startswith("? "):
+                mods += 1
+        return adds, dels, mods
+
+    def _mount_side_by_side_diff(
+        self,
+        host: Container,
+        *,
+        target_path: Path,
+        before: str,
+        after: str,
+        title: str,
+    ) -> None:
+        adds, dels, mods = self._diff_stats(before, after)
+
+        before_text = before.strip() or "(file does not exist yet)"
+        after_text = after.strip() or "(empty)"
+
+        host.mount(Static(f"\n[bold #7dcfff]{title}[/]"))
+        host.mount(Static(f"[#565f89]{target_path}[/]"))
+        host.mount(Horizontal(
+            Container(
+                Static("[bold #bb9af7]BEFORE[/]"),
+                Static(f"[#3b4261]{before_text[:3200]}[/]"),
+                classes="panel",
+            ),
+            Container(
+                Static("[bold #9ece6a]AFTER[/]"),
+                Static(f"[#c0caf5]{after_text[:3200]}[/]"),
+                classes="panel",
+            ),
+        ))
+        host.mount(Static(
+            f"[#565f89]+ {adds} additions  ·  - {dels} removals  ·  ~ {mods} modifications[/]"
+        ))
+
+    def _show_architect_diff(self, project_path: Path, content: str, *, with_confirm: bool) -> None:
+        diff_view = self.query_one("#diff-view")
+        diff_view.remove_children()
+
+        target = project_path / "AGENTS.md"
+        before = target.read_text(encoding="utf-8") if target.exists() else ""
+
+        self._mount_side_by_side_diff(
+            diff_view,
+            target_path=target,
+            before=before,
+            after=content,
+            title="GHOST DIFF — AGENTS.md",
+        )
+
+        if with_confirm:
+            self._pending_agents_write_path = target
+            self._pending_agents_write_content = content
+            diff_view.mount(Horizontal(
+                Button("✅ Confirm Write", id="btn-arch-confirm-write", classes="btn-success"),
+                Button("← Back to Architect", id="btn-goto-architect", classes="btn-ghost"),
+            ))
+
+        try:
+            self.query_one("#project-tabs", TabbedContent).active = "tab-diff"
+        except Exception:
+            pass
+
+    def _write_architect_agents(self) -> None:
+        try:
+            path_str = self.query_one("#project-path", Input).value.strip()
+        except Exception:
+            path_str = str(Path(os.getcwd()))
+        project_path = Path(path_str).expanduser()
+        if not project_path.exists() or not project_path.is_dir():
+            self.app.notify(f"Invalid project path: {project_path}", severity="error")
+            return
+
+        content = self._build_agents_from_architect(project_path)
+        self._show_architect_diff(project_path, content, with_confirm=True)
+        self.app.notify("Review Ghost Diff, then confirm write.", severity="warning")
+
+    def _confirm_write_architect_agents(self) -> None:
+        target = self._pending_agents_write_path
+        content = self._pending_agents_write_content
+        if not target or content is None:
+            self.app.notify("No pending AGENTS.md write to confirm", severity="warning")
+            return
+
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        self.app.notify(f"✓ Wrote AGENTS.md via Context Architect → {target}", severity="information")
+        self._pending_agents_write_path = None
+        self._pending_agents_write_content = None
+        self._preview_architect_agents()
+
     # ── Events ────────────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -217,6 +448,24 @@ class ProjectScreen(Container):
             self._remove_plugin(bid[len("plug-rm-proj-"):], scope="project")
         elif bid.startswith("plug-rm-glob-"):
             self._remove_plugin(bid[len("plug-rm-glob-"):], scope="global")
+        elif bid == "btn-arch-preview":
+            self._preview_architect_agents()
+        elif bid == "btn-arch-diff":
+            try:
+                path_str = self.query_one("#project-path", Input).value.strip()
+            except Exception:
+                path_str = str(Path(os.getcwd()))
+            project_path = Path(path_str).expanduser()
+            self._show_architect_diff(project_path, self._build_agents_from_architect(project_path), with_confirm=False)
+        elif bid == "btn-arch-write":
+            self._write_architect_agents()
+        elif bid == "btn-arch-confirm-write":
+            self._confirm_write_architect_agents()
+        elif bid == "btn-goto-architect":
+            try:
+                self.query_one("#project-tabs", TabbedContent).active = "tab-architect"
+            except Exception:
+                pass
 
     def _install_plugin(self, plugin_name: str, scope: str) -> None:
         plugin = next((p for p in OPENCODE_PLUGINS if p.name == plugin_name), None)
@@ -318,6 +567,20 @@ class ProjectScreen(Container):
                 f"  [{color}]{icon} [{tag}][/] [#c0caf5]{p.name}[/]  "
                 f"[#565f89]{entry.description or str(p.parent)[:50]}[/]"
             ))
+
+        # Feature 12 foundation: side-by-side diffs for AGENTS.md and opencode.json
+        for entry in plan.entries:
+            p = Path(entry.path)
+            if p.name not in ("AGENTS.md", "opencode.json"):
+                continue
+            before = p.read_text(encoding="utf-8") if p.exists() else ""
+            self._mount_side_by_side_diff(
+                diff_view,
+                target_path=p,
+                before=before,
+                after=entry.content,
+                title=f"GHOST DIFF — {p.name}",
+            )
 
         diff_view.mount(Static(f"\n[#565f89]{plan.summary()}[/]"))
         diff_view.mount(Horizontal(

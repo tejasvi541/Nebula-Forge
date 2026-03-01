@@ -33,6 +33,8 @@ class APIKeys(BaseModel):
 
 class VaultConfig(BaseModel):
     api_keys: APIKeys = Field(default_factory=APIKeys)
+    key_profiles: Dict[str, APIKeys] = Field(default_factory=dict)
+    active_profile: str = "default"
     global_base_path: str = str(Path.home())
     default_model: str = "copilot/claude-opus-4-6"
     default_provider: str = "github_copilot"
@@ -48,6 +50,13 @@ class VaultConfig(BaseModel):
     # Per-project relative subdirs (relative to project root)
     project_skills_subdir: str = ".opencode/skills"
     project_agents_subdir: str = ".opencode/agents"
+    encryption_enabled: bool = False
+    auto_lock_minutes: int = 15
+    sync_repo_url: Optional[str] = None
+    sync_branch: str = "main"
+    sync_auto: bool = False
+    sync_last_pull: Optional[str] = None
+    sync_last_push: Optional[str] = None
 
     @field_validator("global_base_path")
     @classmethod
@@ -344,3 +353,67 @@ class ProjectContext(BaseModel):
     has_nebula_agents: bool = False
     detected_stack: List[str] = Field(default_factory=list)
     available_skills: List[str] = Field(default_factory=list)
+
+
+class RadarWarning(BaseModel):
+    """Single project health warning surfaced by Forge Radar."""
+    level: str = "info"  # error | warning | info
+    code: str
+    message: str
+    action_label: Optional[str] = None
+
+
+class ProjectHealth(BaseModel):
+    """Aggregated health snapshot for a project path."""
+    project_path: str
+    scanned_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    git_status: str = "no_git"  # clean | dirty | no_git
+    has_agents_md: bool = False
+    has_opencode_json: bool = False
+    has_opencode_dir: bool = False
+    active_skills: List[str] = Field(default_factory=list)
+    warnings: List[RadarWarning] = Field(default_factory=list)
+
+
+class MarketplaceSkill(BaseModel):
+    """Marketplace skill metadata for browse/install UI."""
+    id: str
+    name: str
+    description: str
+    author: str = "community"
+    category: str = "general"
+    tags: List[str] = Field(default_factory=list)
+    stars: float = 0.0
+    downloads: int = 0
+    verified: bool = False
+    compatible_agents: List[str] = Field(default_factory=lambda: ["opencode"])
+    repo_url: str = ""
+    version: str = "1.0.0"
+
+
+class SessionEvent(BaseModel):
+    """Single timeline event from an agent session log."""
+    timestamp: str
+    type: str = "message"  # read | edit | run | commit | message
+    path: Optional[str] = None
+    summary: str
+    raw: Dict[str, object] = Field(default_factory=dict)
+
+
+class AgentSession(BaseModel):
+    """Parsed session aggregate from provider logs."""
+    id: str
+    agent: str = "custom"  # opencode | claude-code | gemini | custom
+    project_path: str = ""
+    branch: str = ""
+    started_at: str = ""
+    ended_at: Optional[str] = None
+    events: List[SessionEvent] = Field(default_factory=list)
+    git_dirty: bool = False
+
+
+class SkillQualityScore(BaseModel):
+    """Quality score result for Skill Composer."""
+    total: int = 0
+    criteria: Dict[str, bool] = Field(default_factory=dict)
+    suggestions: List[str] = Field(default_factory=list)

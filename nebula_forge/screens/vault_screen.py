@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from textual.app import ComposeResult
 from textual.widgets import (
-    Button, Input, Static, TabbedContent, TabPane,
+    Button, Input, Static, TabbedContent, TabPane, Select,
 )
 from textual.containers import (
     Horizontal, Container, ScrollableContainer,
@@ -65,7 +65,9 @@ class VaultScreen(Container):
 
     def _build_keys_tab(self) -> ScrollableContainer:
         cfg = self.vault.load()
-        keys = cfg.api_keys
+        keys = self.vault.get_active_api_keys()
+        profiles = self.vault.list_profiles()
+        profile_options = [(p, p) for p in profiles] if profiles else [("default", "default")]
 
         fixed_fields = [
             ("github_copilot", "GitHub Copilot Token", keys.github_copilot or ""),
@@ -73,7 +75,20 @@ class VaultScreen(Container):
             ("anthropic", "Anthropic API Key", keys.anthropic or ""),
             ("nvidia", "NVIDIA NIM API Key", keys.nvidia or ""),
         ]
-        children: list = [Static("[bold #7dcfff]Fixed API Keys[/]\n")]
+        children: list = [
+            Static("[bold #7dcfff]Vault Profiles[/]"),
+            Static(f"[#565f89]Active profile:[/] [#9ece6a]{cfg.active_profile}[/]"),
+            Horizontal(
+                Select(options=profile_options, value=cfg.active_profile, id="profile-switch-select"),
+                Button("Switch", id="btn-switch-profile", classes="btn-ghost"),
+            ),
+            Horizontal(
+                Input(placeholder="new-profile-name", id="profile-new-name"),
+                Button("Create", id="btn-create-profile", classes="btn-primary"),
+            ),
+            Static(""),
+            Static("[bold #7dcfff]Fixed API Keys[/]\n"),
+        ]
         for fid, label, val in fixed_fields:
             children.append(Static(f"[#bb9af7]{label}[/]"))
             children.append(Input(value=val, password=True, id=f"key-{fid}", placeholder="not set"))
@@ -167,6 +182,10 @@ class VaultScreen(Container):
         bid = event.button.id or ""
         if bid == "btn-save-keys":
             self._save_keys()
+        elif bid == "btn-create-profile":
+            self._create_profile()
+        elif bid == "btn-switch-profile":
+            self._switch_profile()
         elif bid == "btn-add-custom-key":
             self._add_custom_key_row()
         elif bid.startswith("remove-custom-"):
@@ -183,7 +202,7 @@ class VaultScreen(Container):
 
     def _save_keys(self) -> None:
         cfg = self.vault.load()
-        current = cfg.api_keys.model_dump()
+        current = self.vault.get_active_api_keys().model_dump()
         for fid in ("github_copilot", "google_ai", "anthropic", "nvidia"):
             try:
                 val = self.query_one(f"#key-{fid}", Input).value.strip()
@@ -204,9 +223,39 @@ class VaultScreen(Container):
         except Exception:
             pass
         current["custom_endpoints"] = custom
-        cfg.api_keys = APIKeys(**current)
+        cfg.key_profiles[cfg.active_profile] = APIKeys(**current)
+        cfg.api_keys = cfg.key_profiles[cfg.active_profile]
         self.vault.save(cfg)
         self.app.notify("✓ API keys saved to vault", severity="information")
+
+    def _create_profile(self) -> None:
+        try:
+            name = self.query_one("#profile-new-name", Input).value.strip()
+        except Exception:
+            name = ""
+        if not name:
+            self.app.notify("Profile name is required", severity="warning")
+            return
+        ok = self.vault.create_profile(name)
+        if ok:
+            self.app.notify(f"✓ Profile '{name}' created and activated", severity="information")
+        else:
+            self.app.notify(f"Could not create profile '{name}'", severity="error")
+
+    def _switch_profile(self) -> None:
+        try:
+            sel = self.query_one("#profile-switch-select", Select)
+            name = str(sel.value) if sel.value != Select.BLANK else ""
+        except Exception:
+            name = ""
+        if not name:
+            self.app.notify("Select a profile first", severity="warning")
+            return
+        ok = self.vault.switch_profile(name)
+        if ok:
+            self.app.notify(f"✓ Switched to profile '{name}'", severity="information")
+        else:
+            self.app.notify(f"Could not switch to profile '{name}'", severity="error")
 
     def _add_custom_key_row(self) -> None:
         try:

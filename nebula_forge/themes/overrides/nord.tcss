@@ -1,0 +1,15 @@
+/* Nord override (foundation) */
+Screen {
+    background: #2e3440;
+    color: #e5e9f0;
+}
+#sidebar {
+    background: #3b4252;
+}
+.section-title {
+    color: #88c0d0;
+}
+.btn-primary {
+    background: #81a1c1;
+    color: #2e3440;
+}

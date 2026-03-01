@@ -54,13 +54,66 @@ class Vault:
             return self._config
         if not VAULT_FILE.exists():
             self._config = VaultConfig()
+            self._ensure_profile_state(self._config)
             return self._config
         try:
             raw = json.loads(VAULT_FILE.read_text())
             self._config = VaultConfig(**raw)
         except Exception:
             self._config = VaultConfig()
+        self._ensure_profile_state(self._config)
         return self._config
+
+    def _ensure_profile_state(self, cfg: VaultConfig) -> None:
+        """Backwards-compatible migration to profile-based key storage."""
+        if not cfg.key_profiles:
+            cfg.key_profiles = {"default": cfg.api_keys}
+        if cfg.active_profile not in cfg.key_profiles:
+            cfg.active_profile = next(iter(cfg.key_profiles.keys()), "default")
+        # Mirror active profile into legacy field for compatibility with old code paths.
+        cfg.api_keys = cfg.key_profiles.get(cfg.active_profile, cfg.api_keys)
+
+    def get_active_profile_name(self) -> str:
+        cfg = self.load()
+        self._ensure_profile_state(cfg)
+        return cfg.active_profile
+
+    def list_profiles(self) -> list[str]:
+        cfg = self.load()
+        self._ensure_profile_state(cfg)
+        return sorted(cfg.key_profiles.keys())
+
+    def get_active_api_keys(self) -> APIKeys:
+        cfg = self.load()
+        self._ensure_profile_state(cfg)
+        return cfg.key_profiles.get(cfg.active_profile, cfg.api_keys)
+
+    def create_profile(self, name: str, clone_active: bool = True) -> bool:
+        cfg = self.load()
+        self._ensure_profile_state(cfg)
+        profile = name.strip()
+        if not profile or profile in cfg.key_profiles:
+            return False
+
+        if clone_active:
+            active = self.get_active_api_keys().model_dump()
+            cfg.key_profiles[profile] = APIKeys(**active)
+        else:
+            cfg.key_profiles[profile] = APIKeys()
+        cfg.active_profile = profile
+        cfg.api_keys = cfg.key_profiles[profile]
+        self.save(cfg)
+        return True
+
+    def switch_profile(self, name: str) -> bool:
+        cfg = self.load()
+        self._ensure_profile_state(cfg)
+        if name not in cfg.key_profiles:
+            return False
+        cfg.active_profile = name
+        cfg.api_keys = cfg.key_profiles[name]
+        self.save(cfg)
+        return True
 
     def save(self, config: VaultConfig) -> None:
         self._config = config  # Update cache before ensure_dirs
@@ -77,11 +130,13 @@ class Vault:
 
     def update_keys(self, **kwargs: str) -> None:
         cfg = self.load()
-        current = cfg.api_keys.model_dump()
+        self._ensure_profile_state(cfg)
+        current = self.get_active_api_keys().model_dump()
         for k, v in kwargs.items():
             if k in current and v:
                 current[k] = v
-        cfg.api_keys = APIKeys(**current)
+        cfg.key_profiles[cfg.active_profile] = APIKeys(**current)
+        cfg.api_keys = cfg.key_profiles[cfg.active_profile]
         self.save(cfg)
 
     def update_settings(self, **kwargs) -> None:
@@ -151,12 +206,13 @@ class Vault:
     # ── Key Access ───────────────────────────────────────────
 
     def get_key(self, provider: str) -> Optional[str]:
-        cfg = self.load()
-        return getattr(cfg.api_keys, provider, None)
+        keys = self.get_active_api_keys()
+        return getattr(keys, provider, None)
 
     def get_env_exports(self) -> str:
         """Generate shell export commands for all set keys."""
         cfg = self.load()
+        keys = self.get_active_api_keys()
         lines = []
         mapping = {
             "google_ai": "GOOGLE_AI_API_KEY",
@@ -165,10 +221,10 @@ class Vault:
             "nvidia": "NVIDIA_API_KEY",
         }
         for field, env_var in mapping.items():
-            val = getattr(cfg.api_keys, field, None)
+            val = getattr(keys, field, None)
             if val:
                 lines.append(f"export {env_var}={val}")
-        for name, val in cfg.api_keys.custom_endpoints.items():
+        for name, val in keys.custom_endpoints.items():
             lines.append(f"export CUSTOM_{name.upper()}_KEY={val}")
         return "\n".join(lines)
 
@@ -216,7 +272,7 @@ class Vault:
 
     def status_summary(self) -> dict[str, str]:
         cfg = self.load()
-        keys = cfg.api_keys
+        keys = self.get_active_api_keys()
         result: dict[str, str] = {
             "Google AI": "✓ set" if keys.google_ai else "✗ missing",
             "Anthropic": "✓ set" if keys.anthropic else "✗ missing",
@@ -226,6 +282,9 @@ class Vault:
         for name in keys.custom_endpoints:
             result[f"Custom: {name[:12]}"] = "✓ set"
         result.update({
+            "Active Profile": cfg.active_profile,
+            "Profiles": str(len(cfg.key_profiles)),
+            "Encryption": "enabled" if cfg.encryption_enabled else "disabled",
             "Default Model": cfg.default_model,
             "Base Path": cfg.global_base_path,
             "Skills": str(len(self.list_global_skills())),

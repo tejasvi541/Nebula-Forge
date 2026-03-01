@@ -1,0 +1,15 @@
+/* Dracula override (foundation) */
+Screen {
+    background: #1e1f29;
+    color: #f8f8f2;
+}
+#sidebar {
+    background: #181922;
+}
+.section-title {
+    color: #ff79c6;
+}
+.btn-primary {
+    background: #bd93f9;
+    color: #1e1f29;
+}

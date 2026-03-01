@@ -54,5 +54,6 @@ logs/
 .env.*
 !.env.example
 
-*./PRD.md
-*./PRDv2.md
+/PRD.md
+/PRDv2.md
+.opencode

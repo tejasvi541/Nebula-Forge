@@ -1,0 +1,97 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            archive_ext: tar.gz
+            bin_name: nebula-forge
+          - os: macos-latest
+            archive_ext: tar.gz
+            bin_name: nebula-forge
+          - os: windows-latest
+            archive_ext: zip
+            bin_name: nebula-forge.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller pytest
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Build one-file executable
+        run: |
+          pyinstaller --noconfirm --clean --onefile --name nebula-forge --collect-data nebula_forge nebula_forge/__main__.py
+
+      - name: Package artifact (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p dist-pack
+          cp dist/${{ matrix.bin_name }} dist-pack/
+          cp README.md dist-pack/
+          tar -czf nebula-forge-${{ runner.os }}-${{ github.ref_name }}.${{ matrix.archive_ext }} -C dist-pack .
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist-pack -Force | Out-Null
+          Copy-Item dist/${{ matrix.bin_name }} dist-pack/
+          Copy-Item README.md dist-pack/
+          Compress-Archive -Path dist-pack/* -DestinationPath nebula-forge-${{ runner.os }}-${{ github.ref_name }}.${{ matrix.archive_ext }} -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nebula-forge-${{ runner.os }}-${{ github.ref_name }}
+          path: nebula-forge-${{ runner.os }}-${{ github.ref_name }}.${{ matrix.archive_ext }}
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Show assets
+        run: ls -R release-assets
+
+      - name: Create/Update release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/**/nebula-forge-*.tar.gz
+            release-assets/**/nebula-forge-*.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false

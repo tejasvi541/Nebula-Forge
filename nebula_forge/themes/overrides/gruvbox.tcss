@@ -1,0 +1,15 @@
+/* Gruvbox override (foundation) */
+Screen {
+    background: #282828;
+    color: #ebdbb2;
+}
+#sidebar {
+    background: #1d2021;
+}
+.section-title {
+    color: #fabd2f;
+}
+.btn-primary {
+    background: #d79921;
+    color: #1d2021;
+}

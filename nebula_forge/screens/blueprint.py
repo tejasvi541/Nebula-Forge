@@ -122,6 +122,10 @@ class BlueprintScreen(Container):
         self.provisioner = provisioner
         self._current_template: BlueprintTemplate | None = None
         self._generated_content: str = ""
+        self._studio_answers: dict[str, str] = {}
+        self._studio_template_id: str = "refactor"
+        self._studio_index: int = 0
+        self._studio_questions: list[tuple[str, str, str]] = self._studio_questions_for("refactor")
 
     def compose(self) -> ComposeResult:
         yield Static("  ◈  BLUEPRINT GENERATOR  —  Agent Scratchpad", classes="section-title")
@@ -138,6 +142,8 @@ class BlueprintScreen(Container):
                     Static("[#565f89]Fill in the form, then click Generate Blueprint.[/]"),
                     id="preview-view",
                 )
+            with TabPane("  Studio  ", id="tab-studio"):
+                yield self._build_studio_tab()
 
     # ── Templates ─────────────────────────────────────────────
 
@@ -200,6 +206,104 @@ class BlueprintScreen(Container):
         ])
         return ScrollableContainer(*var_widgets, id="configure-inner")
 
+    # ── Blueprint Studio (Interview Mode) ────────────────────────
+
+    def _build_studio_tab(self) -> ScrollableContainer:
+        return ScrollableContainer(
+            Static("[bold #7dcfff]Blueprint Studio — AI Interview (Foundation)[/]"),
+            Static("[#565f89]Answer guided questions. Confidence increases with completion.[/]\n"),
+            Static("[#bb9af7]Goal[/]"),
+            Input(
+                placeholder="Describe the objective (e.g., migrate REST to GraphQL)",
+                id="studio-goal",
+            ),
+            Static("[#bb9af7]Template[/]"),
+            Select(
+                options=[
+                    ("Massive Refactor", "refactor"),
+                    ("Legacy Migration", "migration"),
+                    ("System Architecture", "architecture"),
+                ],
+                value="refactor",
+                id="studio-template",
+            ),
+            Static("", id="studio-progress"),
+            Static("", id="studio-question"),
+            Input(placeholder="Type your answer...", id="studio-answer"),
+            Horizontal(
+                Button("Next", id="btn-studio-next", classes="btn-primary"),
+                Button("Skip", id="btn-studio-skip", classes="btn-ghost"),
+                Button("Reset", id="btn-studio-reset", classes="btn-ghost"),
+            ),
+            Horizontal(
+                Button("Generate Plan", id="btn-studio-generate", classes="btn-success"),
+            ),
+            Container(id="studio-summary"),
+            classes="panel",
+        )
+
+    def _studio_questions_for(self, template_id: str) -> list[tuple[str, str, str]]:
+        if template_id == "migration":
+            return [
+                ("project", "Project name?", "my-platform"),
+                ("from_tech", "Current stack?", "REST monolith"),
+                ("to_tech", "Target stack?", "GraphQL services"),
+                ("timeline", "Timeline?", "3 months"),
+                ("risks", "Top risks?", "auth, data consistency"),
+                ("rollback", "Rollback strategy?", "feature flags"),
+            ]
+        if template_id == "architecture":
+            return [
+                ("project", "Project name?", "new-platform"),
+                ("system_name", "System name?", "Payments Service"),
+                ("scope", "Scope?", "Core billing"),
+                ("availability", "Availability target?", "99.9%"),
+                ("latency", "Latency target?", "p99 < 200ms"),
+                ("security", "Security requirement?", "SOC2"),
+            ]
+        return [
+            ("project", "Project name?", "my-app"),
+            ("module", "Target module/path?", "src/auth"),
+            ("objective", "Main objective?", "improve modularity"),
+            ("coverage", "Current test coverage?", "~60%"),
+            ("critical_paths", "Critical user paths?", "login, checkout"),
+            ("success", "Success criteria?", "tests green, no regressions"),
+        ]
+
+    def on_mount(self) -> None:
+        self._refresh_studio_ui()
+
+    def _refresh_studio_ui(self) -> None:
+        total = max(len(self._studio_questions), 1)
+        answered = sum(1 for k, _, _ in self._studio_questions if self._studio_answers.get(k))
+        confidence = int((answered / total) * 100)
+
+        try:
+            self.query_one("#studio-progress", Static).update(
+                f"[#565f89]Interview:[/] [#7aa2f7]{answered}/{total}[/]  "
+                f"[#565f89]Confidence:[/] [#9ece6a]{confidence}%[/]"
+            )
+        except Exception:
+            pass
+
+        if 0 <= self._studio_index < len(self._studio_questions):
+            key, label, hint = self._studio_questions[self._studio_index]
+            try:
+                self.query_one("#studio-question", Static).update(
+                    f"\n[bold #bb9af7]Q{self._studio_index + 1}:[/] [#c0caf5]{label}[/]"
+                )
+                inp = self.query_one("#studio-answer", Input)
+                inp.placeholder = hint
+                inp.value = self._studio_answers.get(key, "")
+            except Exception:
+                pass
+        else:
+            try:
+                self.query_one("#studio-question", Static).update("\n[#9ece6a]Interview complete. Generate your plan.[/]")
+                self.query_one("#studio-answer", Input).value = ""
+            except Exception:
+                pass
+
     # ── Events ────────────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -226,6 +330,70 @@ class BlueprintScreen(Container):
 
         elif bid == "btn-copy-preview":
             self.app.notify("Use Save to file — clipboard not available in TUI", severity="warning")
+
+        elif bid == "btn-studio-next":
+            self._studio_capture_current(skip=False)
+        elif bid == "btn-studio-skip":
+            self._studio_capture_current(skip=True)
+        elif bid == "btn-studio-reset":
+            self._studio_answers = {}
+            self._studio_index = 0
+            self._refresh_studio_ui()
+        elif bid == "btn-studio-generate":
+            self._studio_generate_blueprint()
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id == "studio-template":
+            val = event.value
+            if val == Select.BLANK:
+                return
+            self._studio_template_id = str(val)
+            self._studio_questions = self._studio_questions_for(self._studio_template_id)
+            self._studio_answers = {}
+            self._studio_index = 0
+            self._refresh_studio_ui()
+
+    def _studio_capture_current(self, *, skip: bool) -> None:
+        if self._studio_index >= len(self._studio_questions):
+            return
+        key, _, _ = self._studio_questions[self._studio_index]
+        try:
+            answer = self.query_one("#studio-answer", Input).value.strip()
+        except Exception:
+            answer = ""
+
+        if not skip and answer:
+            self._studio_answers[key] = answer
+
+        self._studio_index += 1
+        self._refresh_studio_ui()
+
+    def _studio_generate_blueprint(self) -> None:
+        try:
+            goal = self.query_one("#studio-goal", Input).value.strip()
+        except Exception:
+            goal = ""
+
+        vars_from_interview = dict(self._studio_answers)
+        if goal and not vars_from_interview.get("objective"):
+            vars_from_interview["objective"] = goal
+        if goal and not vars_from_interview.get("project"):
+            vars_from_interview["project"] = goal.split()[0].lower().strip("-_") or "project"
+
+        project_name = vars_from_interview.get("project", "MyProject")
+        self.run_generate(self._studio_template_id, vars_from_interview, project_name)
+
+        try:
+            summary = self.query_one("#studio-summary", Container)
+            total = max(len(self._studio_questions), 1)
+            answered = sum(1 for k, _, _ in self._studio_questions if self._studio_answers.get(k))
+            confidence = int((answered / total) * 100)
+            summary.remove_children()
+            summary.mount(Static(
+                f"\n[#565f89]Generated from Studio interview — answered {answered}/{total} · confidence {confidence}%[/]"
+            ))
+        except Exception:
+            pass
 
     def _load_configure(self, tmpl: BlueprintTemplate) -> None:
         try:
